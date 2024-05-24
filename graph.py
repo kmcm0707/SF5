@@ -32,9 +32,15 @@ class Network(object):
             stack.extend(self.neighbors(node) - c)
         return c
     
+    def degree_distributions_individual(self):
+        return np.array([len(self.adj[i]) for i in self.adj])
+    
     def degree_distributions(self):
         degrees = [len(self.adj[i]) for i in self.adj]
         return pd.Series(degrees).value_counts().sort_index()
+    
+    def friends_degree_distribution(self):
+        return np.array([np.mean([len(self.adj[j]) for j in self.adj[i]]) for i in self.adj])
     
 
 class random_graph(Network):
@@ -182,7 +188,7 @@ if __name__ == '__main__':
     plt.axvline(mean, color='red')
     plt.show()"""
 
-    geometric_config_graph = geometric_configuration_graph(10000, 1/11)
+    """geometric_config_graph = geometric_configuration_graph(10000, 1/11)
     poisson_config_graph = poisson_configuration_graph(10000, 10)
 
     friend_degrees_geometric = []
@@ -192,6 +198,8 @@ if __name__ == '__main__':
             friend_degrees_geometric.append(len(geometric_config_graph.neighbors(np.random.choice(neighbours))))
             i-=1
     friend_degrees_geometric = np.array(friend_degrees_geometric)
+    plt.hist(friend_degrees_geometric, bins=20)
+    plt.show()
     print(friend_degrees_geometric.mean())
     
     friend_degrees_poisson = []
@@ -201,7 +209,44 @@ if __name__ == '__main__':
             friend_degrees_poisson.append(len(poisson_config_graph.neighbors(np.random.choice(neighbours))))
             i-=1
     friend_degrees_poisson = np.array(friend_degrees_poisson)
+    plt.hist(friend_degrees_poisson, bins=20)
+    plt.show()
     print(friend_degrees_poisson.mean())
+
+    delta_friends = geometric_config_graph.friends_degree_distribution() - geometric_config_graph.degree_distributions_individual()
+    delta_friends[np.isnan(delta_friends)] = 0
+    plt.hist(delta_friends, bins=40)
+    plt.show()
+
+    delta_friends = poisson_config_graph.friends_degree_distribution() - poisson_config_graph.degree_distributions_individual()
+    print(np.mean(delta_friends))
+    plt.hist(delta_friends, bins=40)
+    plt.show()"""
+
+    components = []
+    for i in range(11):
+        num_components_one = [len(poisson_configuration_graph(10000, (2/10 * i)).find_component(1)) for _ in range(40)]
+        components.append(np.mean(num_components_one))
+    plt.plot([2/10 * i for i in range(11)], components)
+    plt.xlabel('lambda')
+    plt.ylabel('Number of components for node 1')
+    plt.title('Number of components for node 1 as lambda changes')
+    plt.show()
+
+    components = []
+    for i in range(11):
+        num_components_one = [len(geometric_configuration_graph(10000, 1 - 2/3 * i/10).find_component(1)) for _ in range(40)]
+        components.append(np.mean(num_components_one))
+    
+    p = np.array([1 - 2/3 * i/10 for i in range(11)])
+    mean_degree = (1-p)/p
+    plt.plot(mean_degree, components)
+    plt.xlabel('Mean Degree')
+    plt.ylabel('Number of components for node 1')
+    plt.title('Number of components for node 1 as mean degree changes')
+    plt.show()
+
+
 
 
 
@@ -216,5 +261,6 @@ if __name__ == '__main__':
 ## As n goes to infinity, P(k) = Poisson(\lambda). As (n-1 choose k)(1/n-1)^k -> 1/k! as n goes to infinity and (1-p)^(n-1-k) -> e^(-\lambda) as 1+1/x -> e as x -> infinity.
 ## So P(k) -> e^(-\lambda) * \lambda^k / k!.
 
-
-    
+## Questiion 5: For a probabilty configuration model, the expected value of the degree of a node is the same as the expected value of the degree of a node in a Poisson configuration model.
+## The expected value of the degree of a node in a Poisson configuration model is \lambda. The expected value of the degree of a node in a probability configuration model is \sum_{i=1}^{n} i * P(i).
+## For friends of a node, the expected value of the degree of a friend of a node in a Poisson configuration model is \lambda. The expected value of the degree of a friend of a node in a probability configuration model is \sum_{i=1}^{n} i * P(i) / n.
