@@ -99,6 +99,56 @@ class geometric_configuration_graph(Network):
         for i , j in S:
             self.add_edge(i , j)
 
+class popular_geometric_configuration_graph(Network):
+    def __init__(self , num_nodes , p, popular_nodes_num):
+        super().__init__(num_nodes)
+        S = np.random.geometric(p , num_nodes) - 1
+        S = np.array([ i for i in range (num_nodes) for _ in range (S[i])])
+        S = np.random.permutation(S)
+        if len (S) % 2:
+            S = S[:-1]
+        S = S.reshape(-1 ,2)
+        for i , j in S:
+            self.add_edge(i , j)
+        # print(self.adj[0])
+        popular_nodes = []
+        temp = self.adj.copy()
+        for i in range(popular_nodes_num):
+            popular_nodes.append(max(temp, key=lambda x: len(temp[x])))
+            temp.pop(max(temp, key=lambda x: len(temp[x])))
+            #print(popular_nodes)
+            #print(len(self.adj[0]))
+        for i in popular_nodes:
+            for j in popular_nodes:
+                if i != j:
+                    #print(i,j)
+                    #print(i,j)
+                    #print(self.adj[i])
+                    #print(self.adj[j])
+                    self.add_edge(i, j)
+        
+class popular_poisson_configuration_graph(Network):
+    def __init__(self , num_nodes , lambda_, popular_nodes_num):
+        super().__init__(num_nodes)
+        S = np.random.poisson(lambda_ , num_nodes)
+        S = np.array([ i for i in range (num_nodes) for _ in range (S[i])])
+        S = np.random.permutation(S)
+        if len (S) % 2:
+            S = S[:-1]
+        S = S.reshape(-1 ,2)
+        for i , j in S:
+            self.add_edge(i , j)
+        popular_nodes = []
+        temp = self.adj.copy()
+        for i in range(popular_nodes_num):
+            popular_nodes.append(max(temp, key=lambda x: len(temp[x])))
+            temp.pop(max(temp, key=lambda x: len(temp[x])))
+        for i in popular_nodes:
+            for j in popular_nodes:
+                if i != j:
+                    self.add_edge(i, j)
+
+
 if __name__ == '__main__':
     """for i in range(11):
         edges = [random_graph(100 , i*0.1).num_edges() for _ in range(1000)]
@@ -142,17 +192,19 @@ if __name__ == '__main__':
 
     #print(configuration_graph(10, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).degree_distributions())
 
-    """degrees = [poisson_configuration_graph(10000, 10).degree_distributions() for _ in range(100)]
+    """degrees = [poisson_configuration_graph(10000, 10).degree_distributions()]
     degrees = pd.DataFrame(degrees)
-    combined_degrees = degrees.groupby(degrees.index).sum()
+    combined_degrees = degrees
     values = combined_degrees.values.flatten()
+    #print(values)
     coloumns = combined_degrees.columns
-    index_0 = np.where(coloumns == 0)
-    value_0 = values[index_0]
-    coloumns = np.delete(coloumns, index_0)
-    values = np.delete(values, index_0)
-    coloumns = np.insert(coloumns, 0, 0)
-    values = np.insert(values, 0, value_0)
+    if 0 in coloumns:
+        index_0 = np.where(coloumns == 0)
+        value_0 = values[index_0]
+        coloumns = np.delete(coloumns, index_0)
+        values = np.delete(values, index_0)
+        coloumns = np.insert(coloumns, 0, 0)
+        values = np.insert(values, 0, value_0)
 
     #combined_degrees = combined_degrees.to_numpy().flatten()
     plt.plot(coloumns,values)
@@ -165,17 +217,18 @@ if __name__ == '__main__':
     plt.axvline(mean, color='red')
     plt.show()"""
    
-    """degrees = [geometric_configuration_graph(10000, 1/11).degree_distributions() for _ in range(100)]
+    """degrees = [geometric_configuration_graph(10000, 1/11).degree_distributions()]
     degrees = pd.DataFrame(degrees)
     combined_degrees = degrees.groupby(degrees.index).sum()
     values = combined_degrees.values.flatten()
     coloumns = combined_degrees.columns
-    index_0 = np.where(coloumns == 0)
-    value_0 = values[index_0]
-    coloumns = np.delete(coloumns, index_0)
-    values = np.delete(values, index_0)
-    coloumns = np.insert(coloumns, 0, 0)
-    values = np.insert(values, 0, value_0)
+    if 0 in coloumns:
+        index_0 = np.where(coloumns == 0)
+        value_0 = values[index_0]
+        coloumns = np.delete(coloumns, index_0)
+        values = np.delete(values, index_0)
+        coloumns = np.insert(coloumns, 0, 0)
+        values = np.insert(values, 0, value_0)
 
     #combined_degrees = combined_degrees.to_numpy().flatten()
     plt.plot(coloumns,values)
@@ -184,13 +237,13 @@ if __name__ == '__main__':
     
     mean = np.sum([i*j for i, j in zip(coloumns, values)])/np.sum(values)
     print(mean)
-    plt.title(f'Degree distribution of a Poisson Configuration Graph, mean = {mean}')
+    plt.title(f'Degree distribution of a Geometric Configuration Graph, mean = {mean}')
     plt.axvline(mean, color='red')
     plt.show()"""
 
-    """geometric_config_graph = geometric_configuration_graph(10000, 1/11)
+    geometric_config_graph = geometric_configuration_graph(10000, 1/11)
     poisson_config_graph = poisson_configuration_graph(10000, 10)
-
+    """
     friend_degrees_geometric = []
     for i in range(10000):
         neighbours = np.array(list(geometric_config_graph.neighbors(np.random.randint(0, 10000))))
@@ -199,8 +252,12 @@ if __name__ == '__main__':
             i-=1
     friend_degrees_geometric = np.array(friend_degrees_geometric)
     plt.hist(friend_degrees_geometric, bins=20)
+    mean = np.mean(friend_degrees_geometric)
+    plt.axvline(mean, color='red')
+    plt.title(f'Geometric friend degrees, mean = {mean}')
+    plt.savefig('Geo_friend', bbox_inches='tight')
     plt.show()
-    print(friend_degrees_geometric.mean())
+    
     
     friend_degrees_poisson = []
     for i in range(10000):
@@ -210,20 +267,37 @@ if __name__ == '__main__':
             i-=1
     friend_degrees_poisson = np.array(friend_degrees_poisson)
     plt.hist(friend_degrees_poisson, bins=20)
+    mean = np.mean(friend_degrees_poisson)
+    plt.axvline(mean, color='red')
+    plt.title(f'Poisson friend degrees, mean = {mean}')
+    plt.savefig('Poisson_friend', bbox_inches='tight')
     plt.show()
-    print(friend_degrees_poisson.mean())
-
-    delta_friends = geometric_config_graph.friends_degree_distribution() - geometric_config_graph.degree_distributions_individual()
+    """
+    
+    """delta_friends = geometric_config_graph.friends_degree_distribution() - geometric_config_graph.degree_distributions_individual()
+    zero_index = np.where(geometric_config_graph.degree_distributions_individual() == 0)
+    delta_friends = np.delete(delta_friends, zero_index)
     delta_friends[np.isnan(delta_friends)] = 0
+    print(np.mean(delta_friends))
+    mean = np.mean(delta_friends)
     plt.hist(delta_friends, bins=40)
+    plt.axvline(mean, color='red')
+    plt.title(f'Geometric Delta Configuration Graph, mean = {mean}')
+    plt.savefig('Geo_delta', bbox_inches='tight')
     plt.show()
 
     delta_friends = poisson_config_graph.friends_degree_distribution() - poisson_config_graph.degree_distributions_individual()
+    zero_index = np.where(poisson_config_graph.degree_distributions_individual() == 0)
+    delta_friends = np.delete(delta_friends, zero_index)
     print(np.mean(delta_friends))
+    mean = np.mean(delta_friends)
     plt.hist(delta_friends, bins=40)
+    plt.axvline(mean, color='red')
+    plt.title(f'Poisson Delta Configuration Graph, mean = {mean}')
+    plt.savefig('Poisson_delta', bbox_inches='tight')
     plt.show()"""
 
-    components = []
+    """components = []
     for i in range(11):
         num_components_one = [len(poisson_configuration_graph(10000, (2/10 * i)).find_component(1)) for _ in range(40)]
         components.append(np.mean(num_components_one))
@@ -231,6 +305,7 @@ if __name__ == '__main__':
     plt.xlabel('lambda')
     plt.ylabel('Number of components for node 1')
     plt.title('Number of components for node 1 as lambda changes')
+    plt.savefig('Poisson_components', bbox_inches='tight')
     plt.show()
 
     components = []
@@ -244,7 +319,44 @@ if __name__ == '__main__':
     plt.xlabel('Mean Degree')
     plt.ylabel('Number of components for node 1')
     plt.title('Number of components for node 1 as mean degree changes')
+    plt.savefig('Geometric_components', bbox_inches='tight')
+    plt.show()"""
+
+    """components = []
+    for ii in range(6):
+        temp = []
+        for i in range(11):
+            num_components_one = [len(popular_geometric_configuration_graph(10000, 1 - 2/3 * i/10, ii*3).find_component(1)) for _ in range(10)]
+            temp.append(np.mean(num_components_one))
+        components.append(temp)
+    
+    p = np.array([1 - 2/3 * i/10 for i in range(11)])
+    mean_degree = (1-p)/p
+    for i in range(6):
+        plt.plot(mean_degree, components[i], label=f'Popular Nodes = {i*3}')
+    plt.xlabel('Mean Degree')
+    plt.ylabel('Number of components for node 1')
+    plt.title('Number of components for node 1 as mean degree changes')
+    plt.legend()
+    plt.savefig('Geo_Popular_components', bbox_inches='tight')
+    plt.show()"""
+
+    components = []
+    for ii in range(6):
+        temp = []
+        for i in range(11):
+            num_components_one = [len(popular_poisson_configuration_graph(10000, 2/10 * i, ii*3).find_component(1)) for _ in range(40)]
+            temp.append(np.mean(num_components_one))
+        components.append(temp)
+    for i in range(6):
+        plt.plot([2/10 * ii for ii in range(11)], components[i], label=f'Popular Nodes = {i*3}')
+    plt.xlabel('lambda')
+    plt.ylabel('Number of components for node 1')
+    plt.title('Number of components for node 1 as lambda changes')
+    plt.legend()
+    plt.savefig('Poisson_Popular_components', bbox_inches='tight')
     plt.show()
+
 
 
 
