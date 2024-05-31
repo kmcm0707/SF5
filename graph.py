@@ -5,6 +5,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import random
 import timeit
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import DisjointSet
+import math
 
 class Network(object):
     def __init__(self , num_nodes):
@@ -148,8 +151,144 @@ class popular_poisson_configuration_graph(Network):
                 if i != j:
                     self.add_edge(i, j)
 
+def SIR_simulation(graph, lamda, num_initial_infected, num_steps, vaccination_rate = 0):
+    num_vaccinated = int(vaccination_rate * len(graph.adj))
+    inital_vaccinated = random.sample(range(len(graph.adj)), num_vaccinated)
+    vaccinated = set(inital_vaccinated)
+    inital_infected = random.sample(range(len(graph.adj)), num_initial_infected)
+    if num_initial_infected == 1:
+        inital_infected = [1]
+    infected = set(inital_infected)
+    num_infected = [len(infected)]
+    susceptible = set(range(len(graph.adj))) - infected - vaccinated
+    num_susceptible = [len(susceptible)]
+    recovered = set()
+    num_recovered = [len(recovered)]
+    for _ in range(num_steps):
+        if infected == set():
+            return num_infected, num_susceptible, num_recovered
+        new_infected = set()
+        for i in infected:
+            for j in graph.neighbors(i):
+                if j in susceptible:
+                    if random.random() < lamda:
+                        new_infected.add(j)
+        susceptible -= new_infected
+        recovered |= infected
+        infected |= new_infected
+        infected -= recovered
+        num_infected.append(len(infected))
+        num_susceptible.append(len(susceptible))
+        num_recovered.append(len(recovered))
+    return num_infected, num_susceptible, num_recovered
 
-if __name__ == '__main__':
+def SIR_simulation_2(graph, lamda, num_initial_infected, num_steps, vaccination_rate = 0):
+    num_vaccinated = int(vaccination_rate * len(graph.adj))
+    inital_vaccinated = random.sample(range(len(graph.adj)), num_vaccinated)
+    vaccinated = set(inital_vaccinated)
+    inital_infected = random.sample(range(len(graph.adj)), num_initial_infected)
+    if num_initial_infected == 1:
+        inital_infected = [1]
+    infected = set(inital_infected)
+    num_infected = [len(infected)]
+    susceptible = set(range(len(graph.adj))) - infected - vaccinated
+    num_susceptible = [len(susceptible)]
+    recovered = set()
+    num_recovered = [len(recovered)]
+    for _ in range(num_steps):
+        if infected == set():
+            return infected, susceptible, recovered, vaccinated
+        new_infected = set()
+        for i in infected:
+            for j in graph.neighbors(i):
+                if j in susceptible:
+                    if random.random() < lamda:
+                        new_infected.add(j)
+        susceptible -= new_infected
+        recovered |= infected
+        infected |= new_infected
+        infected -= recovered
+        num_infected.append(len(infected))
+        num_susceptible.append(len(susceptible))
+        num_recovered.append(len(recovered))
+    return infected, susceptible, recovered, vaccinated
+
+def time_SIR_simulation(graph, lamda, num_initial_infected, time_infected, num_steps):
+    initial_infected = random.sample(range(len(graph.adj)), num_initial_infected)
+    infected = set(initial_infected)
+    num_infected = [len(infected)]
+    susceptible = set(range(len(graph.adj))) - infected
+    num_susceptible = [len(susceptible)]
+    recovered = set()
+    num_recovered = [len(recovered)]
+    tracking_infected = {i: time_infected for i in infected}
+    #print(tracking_infected)
+    for _ in range(num_steps):
+        if infected == set():
+            #print(infected)
+            return num_infected, num_susceptible, num_recovered
+        new_infected = set()
+        for i in infected:
+            for j in graph.neighbors(i):
+                if j in susceptible:
+                    if random.random() < lamda:
+                        new_infected.add(j)
+        non_overlapping_new = new_infected - infected
+        susceptible -= new_infected
+        tracking_infected = {i: tracking_infected[i]-1 for i in infected}
+        tracking_infected |= {i: time_infected for i in non_overlapping_new}
+        #print(tracking_infected)
+        infected |= new_infected
+        for i in infected:
+            if tracking_infected[i] == 0:
+                recovered.add(i)
+                tracking_infected.pop(i)
+        #print(recovered)
+        infected -= recovered
+        num_infected.append(len(infected))
+        num_susceptible.append(len(susceptible))
+        num_recovered.append(len(recovered))
+    return num_infected, num_susceptible, num_recovered
+
+def one_loop_SIR_simulation(graph, lamda):
+    C = DisjointSet(range(len(graph.adj)))
+    for i in range(len(graph.adj)):
+        for j in graph.neighbors(i):
+            if random.random() < lamda:
+                C.merge(i, j)
+    return C
+
+def infection_probability_equation(graph, lamda, num_inital_infected, steps):
+    """inital_infected = random.sample(range(len(graph.adj)), num_inital_infected)
+    inital_infected = np.array(inital_infected)
+    s_i = np.zeros(len(graph.adj))
+    s_i[inital_infected] = 1"""
+    s_i = np.random.uniform(0, 0.1, len(graph.adj))
+    for i in range(steps):
+        temp_s_i = s_i.copy()
+        for j in range(len(graph.adj)):
+            s_i[j] = np.prod([1 - lamda + lamda * temp_s_i[k] for k in graph.neighbors(j)]) 
+    return s_i
+
+def quick_SIR(graph, lamda, node):
+    C = DisjointSet(range(len(graph.adj)))
+    num_edges = graph.num_edges()
+    random_i = np.arange(len(graph.adj))
+    random.shuffle(random_i)
+    c_node_k = []
+    for i in random_i:
+        random_j = np.array(list(graph.neighbors(i)))
+        random.shuffle(random_j)
+        for j in random_j:
+            if random.random() < lamda:
+                C.merge(i, j)
+                c_node_k.append(C.subset_size(node))
+    max_index = min(len(c_node_k)-1, 10)
+    c_node_lambda = np.sum([math.comb(num_edges, k) * lamda**k * (1-lamda)**(num_edges-k) * c_node_k[k] for k in range(max_index)])
+    return c_node_lambda
+    
+       
+def week_one_two():
     """for i in range(11):
         edges = [random_graph(100 , i*0.1).num_edges() for _ in range(1000)]
         plt.hist(edges, bins = 50)
@@ -356,6 +495,151 @@ if __name__ == '__main__':
     plt.legend()
     plt.savefig('Poisson_Popular_components', bbox_inches='tight')
     plt.show()
+
+if __name__ == '__main__':
+    poission_graph = poisson_configuration_graph(10000, 10)
+    """num_infected, num_susceptible, num_recovered = SIR_simulation(poission_graph, 0.02, 5, 7, 400)
+    plt.plot(num_infected, label='Infected')
+    plt.plot(num_susceptible, label='Susceptible')
+    plt.plot(num_recovered, label='Recovered')
+    plt.xlabel('Time')
+    plt.ylabel('Number of nodes')
+    plt.title('SIR Simulation')
+    plt.legend()
+    #plt.savefig('SIR', bbox_inches='tight')
+    plt.show()"""
+    #total_recovered = []
+    """for i in range(50):
+        temp_recovered = [SIR_simulation(poission_graph, 0.01*i/10, 5, 7, 400)[2][-1] for _ in range(60)] # 0.014 = Supercritical
+        total_recovered.append(np.mean(temp_recovered))
+    plt.plot([0.01*i/10 for i in range(50)], total_recovered)
+    plt.xlabel('Lambda')
+    plt.ylabel('Number of nodes recovered')
+    plt.title('Number of nodes recovered as lambda changes')
+
+    plt.savefig('SIR_Lambda', bbox_inches='tight')
+    plt.show()"""
+
+    """total_recovered = []
+    for i in range(50):
+        temp_recovered = [SIR_simulation(poission_graph, 0.01*i, 1, 400)[2][-1] for _ in range(60)]
+        total_recovered.append(np.mean(temp_recovered))
+    plt.plot([0.01*i for i in range(50)], total_recovered) #0.1 = Supercritical
+    plt.xlabel('Lambda')
+    plt.ylabel('Number of nodes recovered')
+    plt.title('Number of nodes recovered as lambda changes')
+    plt.savefig('SIR_Lambda_notime_1', bbox_inches='tight')
+    plt.show()"""
+
+    """infection_probability = infection_probability_equation(poission_graph, 0.3, 5, 100)
+    plt.hist(infection_probability, bins=20)
+    plt.xlabel('Non-Infection Probability')
+    plt.ylabel('Nodes')
+    plt.title('Non-Infection Probability for each node')
+    plt.show()"""
+
+    """cluster_sizes = []
+    cluster_sizes_std = []
+    coefficient_of_variation = []
+    for i in range(50):
+        temp = [one_loop_SIR_simulation(poission_graph, 0.01*i).subset_size(1) for _ in range(60)]
+        cluster_sizes.append(np.mean(temp))
+        cluster_sizes_std.append(np.std(temp))
+        coefficient_of_variation.append(np.std(temp)/np.mean(temp))
+    plt.plot([0.01*i for i in range(50)], cluster_sizes)
+    
+    plt.errorbar([0.01*i for i in range(50)], cluster_sizes, yerr=cluster_sizes_std)
+    plt.xlabel('Lambda')
+    plt.ylabel('Number of clusters')
+    plt.title('Number of clusters as lambda changes')
+    plt.savefig('Clusters', bbox_inches='tight')
+    plt.show()
+
+    plt.plot([0.01*i for i in range(50)], coefficient_of_variation)
+    plt.xlabel('Lambda')
+    plt.ylabel('Coefficient of Variation')
+    plt.title('Coefficient of Variation as lambda changes')
+    plt.savefig('Coefficient', bbox_inches='tight')
+    plt.show()"""
+
+    """quick_recovery = []
+    for i in range(50):
+        temp = [quick_SIR(poission_graph, 0.01*i, 1) for _ in range(60)]
+        quick_recovery.append(np.mean(temp))
+    plt.plot([0.01*i for i in range(50)], quick_recovery)
+    plt.xlabel('Lambda')
+    plt.ylabel('Number of nodes recovered')
+    plt.title('Number of nodes recovered as lambda changes')
+    plt.savefig('Quick_SIR', bbox_inches='tight')
+    plt.show()"""
+
+    """nodes = 10000
+    times_infected = {i: 0 for i in range(nodes)}
+    for i in range(100):
+        infected, susceptible, recovered = SIR_simulation_2(poission_graph, 0.16, 5, 400)
+        for i in recovered:
+            times_infected[i] += 1
+        for i in infected:
+            times_infected[i] += 1
+    values = np.array(list(times_infected.values()))
+    values = values/100
+    plt.hist(values, bins=20)
+    plt.xlabel('Rate of infection')
+    plt.ylabel('Number of nodes')
+    plt.title('Rate of infection for each node')
+    plt.show()
+
+    geometric_configuration_graph = geometric_configuration_graph(10000, 1/11)
+    times_infected = {i: 0 for i in range(nodes)}
+    for i in range(100):
+        infected, susceptible, recovered = SIR_simulation_2(geometric_configuration_graph, 0.12, 5, 400)
+        for i in recovered:
+            times_infected[i] += 1
+        for i in infected:
+            times_infected[i] += 1
+    values = np.array(list(times_infected.values()))
+    values = values/100
+    plt.hist(values, bins=20)
+    plt.xlabel('Rate of infection')
+    plt.ylabel('Number of nodes')
+    plt.title('Rate of infection for each node')
+    plt.show()"""
+
+    geometric_graph = geometric_configuration_graph(10000, 1/11)
+    poisson_graph = poisson_configuration_graph(10000, 10)
+
+    total_recovered_zero = []
+    total_recovered_twenty = []
+    total_recovered_forty = []
+    for i in range(30):
+        temp_recovered = [SIR_simulation(poission_graph, 0.01*i, 1, 400, 0)[2][-1] for _ in range(60)]
+        temp_recovered_twenty = [SIR_simulation(poission_graph, 0.01*i, 1, 400, 0.2)[2][-1] for _ in range(60)]
+        temp_recovered_forty = [SIR_simulation(poission_graph, 0.01*i, 1, 400, 0.4)[2][-1] for _ in range(60)]
+        total_recovered_zero.append(np.mean(temp_recovered))
+        total_recovered_twenty.append(np.mean(temp_recovered_twenty))
+        total_recovered_forty.append(np.mean(temp_recovered_forty))
+    plt.plot([0.01*i for i in range(30)], total_recovered_zero, label='zero') #0.1 = Supercritical
+    plt.plot([0.01*i for i in range(30)], total_recovered_twenty, label='twenty') 
+    plt.plot([0.01*i for i in range(30)], total_recovered_forty, label='forty')
+    plt.xlabel('Lambda')
+    plt.ylabel('Number of nodes recovered')
+    plt.title('Number of nodes recovered as lambda changes')
+    plt.legend()
+    plt.savefig('SIR_Lambda_notime_vacc', bbox_inches='tight')
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+    
+
+
 
 
 
