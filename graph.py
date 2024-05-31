@@ -631,23 +631,6 @@ if __name__ == '__main__':
 
 
 
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
 ## Question 2: It is a Binomial distribution. The average number of edges is n(n-1)p/2. The variance is n(n-1)p(1-p)/2.
 
 ## Question 3: k = number of edges, P(k) = (n-1 choose k) * p^k * (1-p)^(n-1-k), E[k] = (n-1)p, Var(k) = (n-1)p(1-p).
