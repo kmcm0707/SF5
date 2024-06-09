@@ -8,6 +8,10 @@ import timeit
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.cluster.hierarchy import DisjointSet
 import math
+from numpy import linalg as LA
+from numba import jit
+import copy
+
 
 class Network(object):
     def __init__(self , num_nodes):
@@ -16,7 +20,86 @@ class Network(object):
     def add_edge(self , i , j):
         self.adj[i].add(j)
         self.adj[j].add(i)
+    
+    def add_random_edge(self):
+        added = False
+        while not added:
+            i = random.randint(0 , len(self.adj)-1)
+            j = random.randint(0 , len(self.adj)-1)
+            if i != j:
+                if j not in self.adj[i]:
+                    self.add_edge(i , j)
+                    added = True
+        self.add_edge(i , j)
 
+    def add_triangle(self):
+        added = False
+        while not added:
+            i = random.randint(0 , len(self.adj)-1)
+            j = random.randint(0 , len(self.adj)-1)
+            k = random.randint(0 , len(self.adj)-1)
+            if i != j and j != k and i != k:
+                if j in self.adj[i] and k in self.adj[i]:
+                    if j not in self.adj[k]:
+                        self.add_edge(j , k)
+                        added = True
+        self.add_edge(j , k)
+
+    def add_triangle_2(self):
+
+        edges_added = 0
+
+        i = random.randint(0 , len(self.adj)-1)
+        j = random.randint(0 , len(self.adj)-1)
+        k = random.randint(0 , len(self.adj)-1)
+        if i != j and j != k and i != k:
+            if j not in self.adj[i]:
+                self.add_edge(i , j)
+                edges_added += 1
+            if k not in self.adj[i]:
+                self.add_edge(i , k)
+                edges_added += 1
+            if j not in self.adj[k]:
+                self.add_edge(j , k)
+                edges_added += 1
+
+        return edges_added
+    
+    def add_triangle_3(self):
+        i = random.randint(0 , len(self.adj)-1)
+        if len(self.adj[i]) < 1:
+            return 0
+        j = np.random.choice(list(self.adj[i]))
+        if len(self.adj[j]) < 2:
+            return 0
+        k = np.random.choice(list(self.adj[j]))
+        if k not in self.adj[i] and i != k:
+            self.add_edge(i , k)
+            return 1
+        return 0
+                
+
+    def number_of_triangles(self):
+        triangles = 0
+        for i in self.adj:
+            for j in self.adj[i]:
+                for k in self.adj[j]:
+                    if k in self.adj[i]:
+                        triangles += 1
+        return triangles//6
+    
+    def number_of_triangles_quick(self):
+        adj_matrix = np.matrix([[1 if j in self.adj[i] else 0 for j in range(len(self.adj))] for i in range(len(self.adj))])
+        print(adj_matrix.shape)
+        adj_matrix_cubed = adj_matrix**3
+        """diag, P = LA.eig(adj_matrix)
+        DN = np.diag(diag**3)
+        P1 = LA.inv(P)
+
+        adj_matrix_cubed = P*DN*P1"""
+        print("HERE 2")
+        return np.trace(adj_matrix_cubed)//6
+    
     def neighbors(self , i):
         return self.adj[i]
     
@@ -496,8 +579,10 @@ def week_one_two():
     plt.savefig('Poisson_Popular_components', bbox_inches='tight')
     plt.show()
 
-if __name__ == '__main__':
+def week_three_four():
     poission_graph = poisson_configuration_graph(10000, 10)
+    geometric_graph = geometric_configuration_graph(10000, 1/11)
+    #poission_graph = geometric_graph
     """num_infected, num_susceptible, num_recovered = SIR_simulation(poission_graph, 0.02, 5, 7, 400)
     plt.plot(num_infected, label='Infected')
     plt.plot(num_susceptible, label='Susceptible')
@@ -508,28 +593,45 @@ if __name__ == '__main__':
     plt.legend()
     #plt.savefig('SIR', bbox_inches='tight')
     plt.show()"""
-    #total_recovered = []
-    """for i in range(50):
-        temp_recovered = [SIR_simulation(poission_graph, 0.01*i/10, 5, 7, 400)[2][-1] for _ in range(60)] # 0.014 = Supercritical
-        total_recovered.append(np.mean(temp_recovered))
-    plt.plot([0.01*i/10 for i in range(50)], total_recovered)
+    total_recovered = []
+    """for i in range(20):
+        temp_recovered = [time_SIR_simulation(poission_graph, 0.0221*i/20, 5, 10, 410)[2][-1] for _ in range(80)]
+        total_recovered.append(temp_recovered)
+    total_recovered = np.array(total_recovered)
+    total_recovered = np.mean(total_recovered, axis=1)
+    plt.plot([1-(1-0.0221*i/20)**10 for i in range(20)], total_recovered, label='Time 10', color='purple')"""
+    
+    
+
+
+
+    total_recovered = []
+    temp_recovered = time_SIR_simulation(poission_graph, 0.07, 5, 3, 403)[2] # 0.014 = Supercritical
+    plt.plot([i/3 for i in range(len(temp_recovered))], temp_recovered, label='Time 3', color='green')
+    
+
+
+    total_recovered = []
+    temp_recovered = time_SIR_simulation(poission_graph, 0.05, 5, 2, 402)[2]# 0.014 = Supercritical
+    plt.plot([i/2  for i in range(len(temp_recovered))], temp_recovered, label='Time', color='red') 
     plt.xlabel('Lambda')
     plt.ylabel('Number of nodes recovered')
     plt.title('Number of nodes recovered as lambda changes')
 
-    plt.savefig('SIR_Lambda', bbox_inches='tight')
-    plt.show()"""
+    #plt.savefig('SIR_Lambda', bbox_inches='tight')
+    #plt.show()
 
     """total_recovered = []
-    for i in range(50):
-        temp_recovered = [SIR_simulation(poission_graph, 0.01*i, 1, 400)[2][-1] for _ in range(60)]
+    for i in range(20):
+        temp_recovered = [SIR_simulation(poission_graph, 0.01*i, 5, 400)[2][-1] for _ in range(80)]
         total_recovered.append(np.mean(temp_recovered))
-    plt.plot([0.01*i for i in range(50)], total_recovered) #0.1 = Supercritical
+    plt.plot([0.01*i for i in range(20)], total_recovered, label = 'No Time', color = 'Blue') #0.1 = Supercritical"""
     plt.xlabel('Lambda')
     plt.ylabel('Number of nodes recovered')
     plt.title('Number of nodes recovered as lambda changes')
-    plt.savefig('SIR_Lambda_notime_1', bbox_inches='tight')
-    plt.show()"""
+    plt.savefig('SIR_time_changing_3', bbox_inches='tight')
+    plt.legend()
+    plt.show()
 
     """infection_probability = infection_probability_equation(poission_graph, 0.3, 5, 100)
     plt.hist(infection_probability, bins=20)
@@ -605,7 +707,7 @@ if __name__ == '__main__':
     plt.title('Rate of infection for each node')
     plt.show()"""
 
-    geometric_graph = geometric_configuration_graph(10000, 1/11)
+    """geometric_graph = geometric_configuration_graph(10000, 1/11)
     poisson_graph = poisson_configuration_graph(10000, 10)
 
     total_recovered_zero = []
@@ -626,7 +728,39 @@ if __name__ == '__main__':
     plt.title('Number of nodes recovered as lambda changes')
     plt.legend()
     plt.savefig('SIR_Lambda_notime_vacc', bbox_inches='tight')
+    plt.show()"""
+
+if __name__ == '__main__':
+    poission_graph = poisson_configuration_graph(10000, 10)
+    #print(poission_graph.number_of_triangles_quick())
+    triangle_poisson_graph = copy.deepcopy(poission_graph)
+    for i in range(50):
+        triangle_poisson_graph.add_triangle()
+    print("HERE")
+    standeredised_poisson_graph = copy.deepcopy(poission_graph)
+    for i in range(50):
+        standeredised_poisson_graph.add_random_edge()
+    print("HERE")
+    quick_recovery = []
+    quick_recovery_tri = []
+    for i in range(50):
+        temp = [SIR_simulation(standeredised_poisson_graph, 0.01*i, 3, 400) for _ in range(60)]
+        temp_tri = [SIR_simulation(triangle_poisson_graph, 0.01*i, 3, 400) for _ in range(60)]
+        quick_recovery.append(np.mean(temp))
+        quick_recovery_tri.append(np.mean(temp_tri))
+    plt.plot([0.01*i for i in range(50)], quick_recovery)
+    plt.plot([0.01*i for i in range(50)], quick_recovery_tri, label='Triangle', color='red')
+    plt.xlabel('Lambda')
+    plt.ylabel('Number of nodes recovered')
+    plt.title('Number of nodes recovered as lambda changes')
+    plt.savefig('Quick_SIR_tri', bbox_inches='tight')
     plt.show()
+
+    geometric_graph = geometric_configuration_graph(10000, 1/11)
+
+    
+    #poission_graph = geometric_graph
+    
 
 
 
