@@ -1,0 +1,309 @@
+\documentclass[a4paper, 11pt, oneside]{report}
+\author{Kyle McMillan kcm40}
+\title{SF5 Interim Report Two} 
+\pagenumbering{roman}
+
+
+\usepackage{geometry} % This package allows the editing of the page layout
+\usepackage{amsmath}
+
+\usepackage[utf8]{inputenc} % Required for inputting international characters
+\usepackage[T1]{fontenc} % Output font encoding for international characters
+\usepackage{fouriernc} % Use the New Century Schoolbook font
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{verbatimbox}
+\setlength{\headheight}{14.49998pt}
+\setlength{\textheight}{675pt}
+\setlength{\textwidth}{456pt}
+\addtolength{\topmargin}{-2.49998pt}
+
+
+\pagestyle{fancy}
+\fancyhf{}% Clear header/footer
+\fancyhead[L]{3G1}
+\fancyhead[R]{Kcm40}
+\fancyfoot[C]{\thepage}% \fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}% Default \headrulewidth is 0.4pt
+\renewcommand{\footrulewidth}{0.4pt}
+% custom commands
+
+\newcommand{\centreImage}[2]{
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.9\textwidth]{#1}
+		\caption{#2}
+        \label{fig:#1}
+	\end{figure}
+}
+\newcommand{\centreImageTwo}[3]{
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.33\textwidth]{#1}
+        \includegraphics[width=0.33\textwidth]{#2}
+        \caption{#3}
+        \label{fig:#1}
+    \end{figure}
+}
+
+
+\begin{document}
+
+%----------------------------------------------------------------------------------------
+%	TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\begin{titlepage}
+    \centering % Centre everything on the title page
+	
+	\scshape % Use small caps for all text on the title page
+	
+	\vspace*{\baselineskip} % White space at the top of the page
+    %------------------------------------------------
+	%	Title
+	%------------------------------------------------
+	
+	\rule{\textwidth}{1.6pt}\vspace*{-\baselineskip}\vspace*{2pt} % Thick horizontal rule
+	\rule{\textwidth}{0.4pt} % Thin horizontal rule
+	
+	\vspace{0.75\baselineskip} % Whitespace above the title
+	
+	{\LARGE SF5 Interim Report Two} % Title
+	
+	\vspace{0.75\baselineskip} % Whitespace below the title
+	
+	\rule{\textwidth}{0.4pt}\vspace*{-\baselineskip}\vspace{3.2pt} % Thin horizontal rule
+	\rule{\textwidth}{1.6pt} % Thick horizontal rule
+	
+	\vspace{2\baselineskip} % Whitespace after the title block
+	
+	%------------------------------------------------
+	%	Subtitle
+	%------------------------------------------------
+	
+	Part IIA - SF5: Networks, friendship, and disease % Subtitle or further description
+	
+	\vspace*{3\baselineskip} % Whitespace under the subtitle
+	
+	%------------------------------------------------
+	%	Editor(s)
+	%------------------------------------------------
+	
+	Edited By
+	
+	\vspace{0.5\baselineskip} % Whitespace before the editors
+	
+	{\scshape\Large Kyle McMillan \\ kcm40} % Editor list
+	
+	\vspace{0.5\baselineskip} % Whitespace below the editor list
+	
+    \textsc{University Of Cambridge} % Editor affiliation
+	
+	\vfill % Whitespace between editor names and publisher logo
+
+\end{titlepage}
+
+%----------------------------------------------------------------------------------------
+\subsubsection*{Classes}
+\begin{verbnobox}[\fontsize{8pt}{8pt}\selectfont \mbox{}]
+class Network(object):
+    def __init__(self , num_nodes):
+        self.adj = {i:set() for i in range (num_nodes)}
+
+    def add_edge(self , i , j):
+        self.adj[i].add(j)
+        self.adj[j].add(i)
+
+    def neighbors(self , i):
+        return self.adj[i]
+    
+    def edge_list(self):
+        return [(i,j)for i in self.adj for j in self.adj[i] if i < j]
+    
+    def num_edges(self):
+        return sum([len(self.adj[i]) for i in self.adj])//2
+    
+    def find_component(self, i):
+        c = set()
+        stack = [i]
+        while stack:
+            node = stack.pop()
+            c.add(node)
+            stack.extend(self.neighbors(node) - c)
+        return c
+    
+    def degree_distributions_individual(self):
+        return np.array([len(self.adj[i]) for i in self.adj])
+    
+    def degree_distributions(self):
+        degrees = [len(self.adj[i]) for i in self.adj]
+        return pd.Series(degrees).value_counts().sort_index()
+    
+    def friends_degree_distribution(self):
+        return np.array([np.mean([len(self.adj[j]) for j in self.adj[i]]) for i in self.adj])
+
+class configuration_graph(Network):
+    def __init__(self , num_nodes , degree_sequence):
+        super().__init__(num_nodes)
+        S = np.array([ i for i in range (num_nodes) for _ in range (degree_sequence[i])])
+        S = np.random.permutation(S)
+        if len (S) % 2:
+            S = S[:-1]
+        S = S.reshape(-1 ,2)
+        for i , j in S:
+            self.add_edge(i , j)
+
+class poisson_configuration_graph(Network):
+    def __init__(self , num_nodes , lambda_):
+        super().__init__(num_nodes)
+        S = np.random.poisson(lambda_ , num_nodes)
+        S = np.array([ i for i in range (num_nodes) for _ in range (S[i])])
+        S = np.random.permutation(S)
+        if len (S) % 2:
+            S = S[:-1]
+        S = S.reshape(-1 ,2)
+        for i , j in S:
+            self.add_edge(i , j)
+
+class geometric_configuration_graph(Network):
+    def __init__(self , num_nodes , p):
+        super().__init__(num_nodes)
+        S = np.random.geometric(p , num_nodes) - 1
+        S = np.array([ i for i in range (num_nodes) for _ in range (S[i])])
+        S = np.random.permutation(S)
+        if len (S) % 2:
+            S = S[:-1]
+        S = S.reshape(-1 ,2)
+        for i , j in S:
+            self.add_edge(i , j)
+ 
+class popular_poisson_configuration_graph(Network):
+def __init__(self , num_nodes , lambda_, popular_nodes_num):
+    super().__init__(num_nodes)
+    S = np.random.poisson(lambda_ , num_nodes)
+    S = np.array([ i for i in range (num_nodes) for _ in range (S[i])])
+    S = np.random.permutation(S)
+    if len (S) % 2:
+        S = S[:-1]
+    S = S.reshape(-1 ,2)
+    for i , j in S:
+        self.add_edge(i , j)
+    popular_nodes = []
+    temp = self.adj.copy()
+    for i in range(popular_nodes_num):
+        popular_nodes.append(max(temp, key=lambda x: len(temp[x])))
+        temp.pop(max(temp, key=lambda x: len(temp[x])))
+    for i in popular_nodes:
+        for j in popular_nodes:
+            if i != j:
+                self.add_edge(i, j)
+
+\end{verbnobox}
+\subsubsection*{Images}
+\centreImageTwo{poiss.png}{goem.png}{Degree Left: Poisson distribution, Right: Geometric distribution}
+\centreImageTwo{Poisson_friend.png}{Geo_friend.png}{Friend Degree Left: Poisson distribution, Right: Geometric distribution}
+\centreImageTwo{Poisson_delta.png}{Geo_delta.png}{Delta Graph Left: Poisson distribution, Right: Geometric distribution}
+\centreImageTwo{Poisson_components.png}{Geometric_components}{Components Left: Poisson distribution, Right: Geometric distribution}
+\centreImageTwo{Poisson_popular_components.png}{Popular_components.png}{Popular Components Left: Poisson distribution, Right: Geometric distribution}
+\pagebreak
+\subsubsection*{1) For a configuration model network sample the degree distributions created using a poisson and geometric distribution with mean 10 and 10000 nodes.}
+Code:
+\begin{verbnobox}[\fontsize{8pt}{8pt}\selectfont]
+    degrees = [poisson_configuration_graph(10000, 10).degree_distributions()]
+    # degrees = [geometric_configuration_graph(10000, 1/11).degree_distributions()]
+    degrees = pd.DataFrame(degrees)
+    combined_degrees = degrees
+    values = combined_degrees.values.flatten()
+    #print(values)
+    coloumns = combined_degrees.columns
+\end{verbnobox}
+
+Figure 1 shows the degree distributions. This code generates a configuration model network with 10000 nodes and mean 10 degree distribution using a poisson and geometric distribution.
+The degree distributions are then plotted in the figure above. The poisson distribution is on the left and the geometric distribution is on the right.
+We can see that the means are roughly 10 for both distributions and both distributions follow the pmf.
+
+\subsubsection*{2) Friend degree distribution}
+
+Code:
+\begin{verbnobox}[\fontsize{8pt}{8pt}\selectfont]
+    friend_degrees_poisson = []
+    for i in range(10000):
+        neighbours = np.array(list(poisson_config_graph.neighbors(np.random.randint(0, 10000))))
+        if len(neighbours) > 0:
+            friend_degrees_poisson.append(len(poisson_config_graph.neighbors(np.random.choice(neighbours))))
+            i-=1
+\end{verbnobox}
+
+Figure 2 shows the friend graph. From this can see the friend degree distribution is a lot larger for the geometric distribution than the poisson distribution but both are higher than the average degree distribution.
+
+\subsubsection*{3) $\Delta_i = \kappa_i - k_i$}
+$k_i$ - degree of node $i$
+$\kappa_i$ - average degree of neighbours of node $i$
+$$\kappa_i = \frac{1}{k_i} \sum_j A_{ij}k_j$$
+In this histogram nodes of degree 0 are excluded as they would have a $\kappa_i$ of infinity using the above equation.
+Code:
+\begin{verbnobox}[\fontsize{8pt}{8pt}\selectfont]
+    delta_friends = poisson_config_graph.friends_degree_distribution() - poisson_config_graph.degree_distributions_individual()
+    zero_index = np.where(poisson_config_graph.degree_distributions_individual() == 0)
+    delta_friends = np.delete(delta_friends, zero_index)
+\end{verbnobox}
+
+Figure 3 shows the delta graph. Results as expected. The $\Delta_i$ for the poisson distribution is centred around 1 and the geometric distribution is centred around 10. But both graphs similar to be a normal distribution.
+
+\subsubsection*{4) Proving $q_k$ - the probability that a randomly chosen neighbour $k$.}
+
+\begin{align}
+    q_k &= P(k_j = k| k_i -> k_j) \\
+    q_k &= \frac{\text{Number of nodes with degree k that are neighbours of a node with degree i}}{\text{All degrees}} \\
+    q_k &= \frac{kn_k}{\sum_{k_2} k_2n_{k_2}} = \frac{k p_n n}{n \sum_{k_2} k_2 p_{k_2}} = \frac{k p_n}{\sum_{k_2} k_2 p_{k_2}}
+\end{align}
+
+\begin{align}
+    E[\Delta_i] &= \frac{1}{\mu} \sum_{k} k^2 p_k - \mu = \frac{\sigma^2}{\mu} 
+\end{align}
+
+\subsubsection*{5) $q_k$ and generating function}
+$$G'(z) = \sum^{\infty}_{k=1}kz^{k-1}p_k$$
+\begin{align}
+    Q(z) &= \frac{\sum_k z^k p_k k}{\sum_{k_2}k_2p_{k_2}} \\
+    Q(z) &= \frac{zG'(z)}{G'(1)} 
+\end{align}
+Poisson distribution:
+
+\begin{align}
+    G(z) &= e^{\lambda(z-1)} \\
+    G'(z) &= \lambda e^{\lambda(z-1)} \\
+    Q(z) &= ze^{\lambda(z-1)} 
+\end{align}
+This is zP(z) so is $p_{k+1}$ - corresponds to Delta = 1 a lambda should be increased by 1.
+Geometric distribution:
+
+\begin{align}
+    G(z) &= \frac{p}{1-(1-p)z} \\
+    G'(z) &= \frac{p(1-p)}{(1-(1-p)z)^2} \\
+    Q(z) &= \frac{zp^2}{(1-(1-p)z)^2} 
+\end{align}
+This is $(k+2)p^2(1-p)^{k+2}$ - which is geometric distribution squared and added 2 to k.
+
+\subsubsection*{6) Components}
+Code:
+\begin{verbnobox}[\fontsize{8pt}{8pt}\selectfont]
+    for i in range(11):
+        num_components_one = [len(geometric_configuration_graph(10000, 1 - 2/3 * i/10).find_component(1)) for _ in range(40)]
+        components.append(np.mean(num_components_one))
+\end{verbnobox}
+
+Figure 4 shows the components. The poisson graph starts increasing at 1 and the geometric graph starts increasing at 0.5.
+This makes sense as expected number of neighbours for the poisson distribution is lambda and so as long as a node has one edge it's component will increase as friends more popular.
+Same argument for geometric distribution but as the expected number of edges is $\frac{1-p}{p}$ this is only over 1 for p = 0.5.
+
+\subsubsection*{7) Popular People}
+For this it is likely all popular people are in the same component. Then other people will be effectively be by themselves, with a few unpopular people or effectively small
+offshoots connected to the popular people. For both distributions have modelled it so people a certain number of the most popular people are connected together (increases their degree by 1 but ignorable).
+The starting point where component size increases is the same as the previous question but the rate of increase is much higher.
+\end{document}
+
+
